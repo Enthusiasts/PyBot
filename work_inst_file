@@ -1,0 +1,80 @@
+import httplib
+import urllib
+import json
+import datetime
+from time import mktime
+import time, re, logging
+
+x = time.time()
+st = datetime.datetime.fromtimestamp(x).strftime('%Y-%m-%d %H:%M:%S')
+
+
+
+dict_list = []
+location_latitude = '55.8007292'
+location_longitude = '37.5268615'
+distance = '0'
+min_timestamp = 946684800
+max_timestamp = float(str(x).split('.')[0].replace("'",''))
+date_increment = 60*60*3
+
+
+instagram_access_token = '1984253428.1677ed0.b0536369077d4a0abedf9abddc13bb49'
+logging.basicConfig(filename='myapp.log', level=logging.INFO)
+
+def get_instagram(latitude, longitude, distance, min_timestamp, max_timestamp, access_token):
+    get_request =  '/v1/media/search?lat=' + latitude
+    get_request+= '&lng=' + longitude
+    get_request += '&distance=' + distance
+    
+    get_request += '&access_token=' + access_token
+    local_connect = httplib.HTTPSConnection('api.instagram.com', 443)
+    local_connect.request('GET', get_request)
+    return local_connect.getresponse().read()
+
+def timestamptodate(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')+' UTC'
+
+def parse_instagram(location_latitude, location_longitude, distance, min_timestamp, max_timestamp, date_increment, access_token):
+
+    local_min_timestamp = min_timestamp
+    while (1):
+        if ( local_min_timestamp >= max_timestamp ):
+            break
+        local_max_timestamp = local_min_timestamp + date_increment
+        logging.basicConfig(format=local_max_timestamp)
+
+        print(datetime.datetime.fromtimestamp(local_max_timestamp).strftime('%Y-%m-%d %H:%M:%S'))
+        if ( local_max_timestamp > max_timestamp ):
+            local_max_timestamp = max_timestamp
+
+        local_buffer = get_instagram(location_latitude, location_longitude, distance, local_min_timestamp, local_max_timestamp, access_token)
+        instagram_json = json.loads(local_buffer)
+
+        for local_i in instagram_json['data']:
+
+            lat = location_latitude
+            lon = location_longitude
+            photo_url = local_i['images']['standard_resolution']['url']
+            user_name = local_i['user']['username']
+            page_url = 'https://www.instagram.com/' + user_name + '/'
+            user_id = local_i['user']['id']
+            user_fullName = local_i['user']['full_name']
+            time = timestamptodate(int(local_i['created_time']))
+            inst_url = local_i['link']
+
+
+            d = {'photo_url': photo_url, 'time': time, 'inst_url': inst_url, 'lat': lat,
+                 'lon': lon, 'user_name': user_name, 'user_id': user_id,
+                 'user_fullName': user_fullName, 'page_url': page_url}
+            dict_list.append(d)
+
+        local_min_timestamp = local_max_timestamp
+
+
+parse_instagram(location_latitude, location_longitude, distance, min_timestamp, max_timestamp, date_increment, instagram_access_token)
+
+jayson = []
+for i in range(len(dict_list)):
+    jayson.append(json.dumps(dict_list[i]))
+print(jayson)
